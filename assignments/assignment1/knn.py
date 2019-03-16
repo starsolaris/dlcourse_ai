@@ -15,7 +15,7 @@ class KNN:
     def predict(self, X, num_loops=0):
         '''
         Uses the KNN model to predict clases for the data samples provided
-        
+
         Arguments:
         X, np array (num_samples, num_features) - samples to run
            through the model
@@ -44,7 +44,7 @@ class KNN:
 
         Arguments:
         X, np array (num_test_samples, num_features) - samples to run
-        
+
         Returns:
         dists, np array (num_test_samples, num_train_samples) - array
            with distances between each test and each train sample
@@ -55,7 +55,10 @@ class KNN:
         for i_test in range(num_test):
             for i_train in range(num_train):
                 # TODO: Fill dists[i_test][i_train]
-                pass
+                dist = np.sum(abs(self.train_X[i_train] - X[i_test]), axis=0)
+                dists[i_test][i_train] = dist
+
+        return dists
 
     def compute_distances_one_loop(self, X):
         '''
@@ -64,7 +67,7 @@ class KNN:
 
         Arguments:
         X, np array (num_test_samples, num_features) - samples to run
-        
+
         Returns:
         dists, np array (num_test_samples, num_train_samples) - array
            with distances between each test and each train sample
@@ -75,7 +78,10 @@ class KNN:
         for i_test in range(num_test):
             # TODO: Fill the whole row of dists[i_test]
             # without additional loops or list comprehensions
-            pass
+            dist = np.sum(abs(self.train_X[:] - X[i_test]), axis=1)
+            dists[i_test] = dist
+
+        return dists
 
     def compute_distances_no_loops(self, X):
         '''
@@ -84,7 +90,7 @@ class KNN:
 
         Arguments:
         X, np array (num_test_samples, num_features) - samples to run
-        
+
         Returns:
         dists, np array (num_test_samples, num_train_samples) - array
            with distances between each test and each train sample
@@ -93,46 +99,142 @@ class KNN:
         num_test = X.shape[0]
         # Using float32 to to save memory - the default is float64
         dists = np.zeros((num_test, num_train), np.float32)
-        # TODO: Implement computing all distances with no loops!
-        pass
+
+        # np.concatenate()
+        # dist = np.sum(abs(self.train_X[:] - X[i_test]), axis=1)
+        # dists = np.sum(abs(self.train_X[:, None] - X), axis=1)
+        dists = (np.abs(self.train_X[:, :, None] - X.T[None, :, :]).sum(axis=1)).T
+
+        # dists = (np.abs(self.train_X[:, :, None] - X.T[None, :, :]).sum(axis=1)).T
+        return dists
 
     def predict_labels_binary(self, dists):
         '''
         Returns model predictions for binary classification case
-        
+
         Arguments:
         dists, np array (num_test_samples, num_train_samples) - array
            with distances between each test and each train sample
 
         Returns:
-        pred, np array of bool (num_test_samples) - binary predictions 
+        pred, np array of bool (num_test_samples) - binary predictions
            for every test sample
         '''
+        # print(dists, np.shape(dists))
+        # print("min", min(dists[0]), "|")
         num_test = dists.shape[0]
+
         pred = np.zeros(num_test, np.bool)
+
         for i in range(num_test):
             # TODO: Implement choosing best class based on k
             # nearest training samples
-            pass
+
+
+            # sorted = dists[0].sort()
+            b1 = 0
+            b2 = 0
+
+            y = 0
+
+            predk = np.zeros(self.k, np.bool) # [0,0,0]
+            # pred_min_dist = dists[i][0]
+            sorted = np.sort(dists[i]) # [1..12]
+            for k in range(self.k): # [1..3]
+                for j in range(dists[i].shape[0]): # [1..32]
+                    if (sorted[k] == dists[i][j]):
+                        y = self.train_y[j]
+                        break
+                predk[k] = (y == 0) | (y == 9)
+
+            for k in range(self.k):
+                if predk[k] == True:
+                    b1 += 1
+                if predk[k] == False:
+                    b2 += 1
+
+            pred[i] = b1 >= b2
+
+            '''
+            min_dist_index = 0
+            min_dist = dists[i][0]
+            for j in range(dists[i].shape[0]):
+                dist = dists[i][j]
+                if (dist < min_dist):
+                    min_dist = dist
+                    min_dist_index = j
+
+            y = self.train_y[min_dist_index]
+            predk[j] = (y == 0) | (y == 9)
+            '''
+
+            # pred[i] = (y == 0) | (y == 9)
+            # print("predict", self.k, pred)
         return pred
 
     def predict_labels_multiclass(self, dists):
         '''
         Returns model predictions for multi-class classification case
-        
+
         Arguments:
         dists, np array (num_test_samples, num_train_samples) - array
            with distances between each test and each train sample
 
         Returns:
-        pred, np array of int (num_test_samples) - predicted class index 
+        pred, np array of int (num_test_samples) - predicted class index
            for every test sample
         '''
-        num_test = dists.shape[0]
+
         num_test = dists.shape[0]
         pred = np.zeros(num_test, np.int)
         for i in range(num_test):
             # TODO: Implement choosing best class based on k
             # nearest training samples
-            pass
+
+
+            # sorted = dists[0].sort()
+            b1 = 0
+            b2 = 0
+
+            y = 0
+
+            predk = {} # [0,0,0]
+            num_of_digits = np.zeros(10, np.int)
+            # pred_min_dist = dists[i][0]
+            sorted = np.sort(dists[i]) # [1..12]
+            for k in range(self.k): # [1..3]
+                for j in range(dists[i].shape[0]): # [1..32]
+                    if (sorted[k] == dists[i][j]):
+                        y = self.train_y[j]
+                        break
+                predk[k] = [y, 0]
+
+            for k in range(self.k):
+                index = predk[k]
+                num_of_digits[index] = num_of_digits[index] + 1
+
+            max_index = 0
+            max = num_of_digits[max_index]
+            for j in range(num_of_digits.shape[0]):
+                if num_of_digits[j] > max:
+                    max = num_of_digits[j]
+                    max_index = j
+
+            pred[i] = max_index
+
+            '''
+            min_dist_index = 0
+            min_dist = dists[i][0]
+            for j in range(dists[i].shape[0]):
+                dist = dists[i][j]
+                if (dist < min_dist):
+                    min_dist = dist
+                    min_dist_index = j
+
+            y = self.train_y[min_dist_index]
+            predk[j] = (y == 0) | (y == 9)
+            '''
+
+            # pred[i] = (y == 0) | (y == 9)
+            # print("predict", self.k, pred)
         return pred
